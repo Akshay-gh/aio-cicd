@@ -1,0 +1,24 @@
+---
+all:
+  hosts:
+  children:
+
+    jenkins_server:
+      hosts:
+        jenkins:
+
+    sonarqube_server:
+      hosts:
+        sonar:
+
+    nexus_repo:
+      hosts:
+        nexus:
+
+    k8s_master:
+      hosts:
+        master:
+
+    k8s_worker:
+      hosts:
+        k8s_node1:

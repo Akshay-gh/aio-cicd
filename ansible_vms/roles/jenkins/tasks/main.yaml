@@ -1,0 +1,34 @@
+---
+- name: Ensure jenkins key is added
+  ansible.builtin.apt_key:
+    url: https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key
+    state: present
+
+- name: Add jenkins repo
+  ansible.builtin.apt_repository:
+    filename: jenkins
+    repo: deb https://pkg.jenkins.io/debian-stable binary/
+
+- name: Updated repo
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Ensure java is Setup
+  ansible.builtin.apt:
+    name: openjdk-11-jre
+    state: present
+
+- name: Setup Jenkins
+  block:
+    - name: Installing Jenkins
+      ansible.builtin.apt:
+        name: jenkins
+        update_cache: true
+        state: present
+    - name: Ensure jenkins running
+      ansible.builtin.service:
+        name: jenkins
+        state: started
+
+# Ansible play to Install Helm
