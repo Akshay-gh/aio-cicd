@@ -1,0 +1,9 @@
+---
+- name: Install command dependencies
+  ansible.builtin.apt:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - unzip
+    - curl
+    - wget

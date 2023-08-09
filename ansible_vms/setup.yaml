@@ -1,9 +1,16 @@
 ---
 # CICD Resource Setup
+- name: Installing common dependencies
+  hosts: all
+  become: true
+  roles:
+    - commons
 
-# Setting up common pakages
+# Setting up jenkins
 - name: Installing jenkins
   hosts: jenkins_server
   become: true
   roles:
-    - jenkins
+    - jenkins_setup
+  
+# Setting 

@@ -1,0 +1,119 @@
+---
+- name: Ensure jenkins key is added
+  ansible.builtin.apt_key:
+    url: https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key
+    state: present
+
+- name: Add jenkins repo
+  ansible.builtin.apt_repository:
+    filename: jenkins
+    repo: deb https://pkg.jenkins.io/debian-stable binary/
+
+- name: Updated repo
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Ensure java is Setup
+  ansible.builtin.apt:
+    name: openjdk-11-jre
+    state: present
+
+- name: Setup Jenkins
+  block:
+    - name: Installing Jenkins
+      ansible.builtin.apt:
+        name: jenkins
+        update_cache: true
+        state: present
+    - name: Ensure jenkins running
+      ansible.builtin.service:
+        name: jenkins
+        state: started
+
+# Install Helm plugin for jenkins
+- name: Check if Helm plugins installed
+  ansible.builtin.command: helm version
+  register: helm_check_result
+  changed_when: false # This line ensures the task is not considered changed
+
+- name: Helm block
+  when: helm_check_result.rc != 0
+  become: true
+  block:
+    - name: Download helm script
+      ansible.builtin.get_url:
+        url: https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3
+        dest: /tmp/get_helm.sh
+        mode: '0755'
+
+    - name: Install helm form scipts
+      ansible.builtin.command: /tmp/get_helm.sh
+      changed_when: helm_check_result.rc != 0   # Only consider changed if helm is not installed
+
+# Install datree.io plugin for jenkins
+- name: Check if datree.io plugin is installed
+  ansible.builtin.command: "helm plugin list | grep datree"
+  register: datree_check_result
+  failed_when: datree_check_result.rc != 1 and datree_check_result.rc != 0
+  changed_when: false
+
+- name: Install Datree plugin
+  ansible.builtin.command: "helm plugin install https://github.com/datreeio/helm-datree"
+  when: datree_check_result.rc != 0
+  changed_when: false
+
+- name: Install required packages
+  ansible.builtin.apt:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - apt-transport-https
+    - ca-certificates
+    - gnupg-agent
+    - software-properties-common
+
+# Setup Docker, kubectl utility
+- name: Add Docker GPG key
+  ansible.builtin.apt_key:
+    url: https://download.docker.com/linux/debian/gpg
+    state: present
+
+- name: Add Docker repository
+  ansible.builtin.apt_repository:
+    filename: docker-repo
+    repo: deb [arch=amd64] https://download.docker.com/linux/debian {{ ansible_distribution_release }} stable
+    state: present
+
+- name: Install Docker
+  ansible.builtin.apt:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - docker-ce
+    - docker-ce-cli
+    - containerd.io
+
+- name: Add jenkins to sudo group
+  ansible.builtin.user:
+    name: jenkins
+    groups: sudo
+    append: true
+
+- name: Add jenkins to docker group
+  ansible.builtin.user:
+    name: jenkins
+    groups: docker
+    append: true
+
+- name: Add jenkins to sudoers file
+  ansible.builtin.lineinfile:
+    path: /etc/sudoers
+    line: 'jenkins ALL=(ALL) NOPASSWD: ALL'
+
+- name: Create kubectl alias for root user
+  ansible.builtin.lineinfile:
+    dest: /root/.bashrc
+    line: 'alias k=kubectl'
+    state: present
+    regexp: '^alias k='
